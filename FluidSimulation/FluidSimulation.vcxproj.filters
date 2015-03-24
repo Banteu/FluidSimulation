@@ -1,0 +1,53 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CudaCompile Include="kernel.cu" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="DLLInterface.cpp" />
+    <ClCompile Include="FluidSimulationMain.cpp" />
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MathFunc.cpp" />
+    <ClCompile Include="SphContainer.cpp" />
+    <ClCompile Include="SphCpuSolver.cpp" />
+    <ClCompile Include="structs.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="DLLInterface.h" />
+    <ClInclude Include="Headers.h" />
+    <ClInclude Include="kernel.cuh" />
+    <ClInclude Include="Material.h" />
+    <ClInclude Include="MathFunc.h" />
+    <ClInclude Include="Quaternion.h" />
+    <ClInclude Include="SphContainer.h" />
+    <ClInclude Include="SphCpuSolver.h" />
+    <ClInclude Include="structs.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{7b9847ba-ec8f-40cd-944a-31e03f6fd5f9}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="shader\FINAL_RENDER_SHADER_FS.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\FINAL_RENDER_SHADER_VS.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\POINT_FS.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\POINT_VX.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\SMOOTH_FS.fs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\SMOOTH_VX.vs">
+      <Filter>Shaders</Filter>
+    </None>
+  </ItemGroup>
+</Project>
