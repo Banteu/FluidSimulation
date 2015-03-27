@@ -1,6 +1,6 @@
 #include <cstdio>
 #include "Headers.h"
-
+#include <time.h>
 Shader POINT_SHADER; 
 Shader SMOOTH_SHADER;
 Shader FINAL_RENDER_SHADER;
@@ -453,7 +453,7 @@ int main(int argc, char **argv)
     TEX_RENDERER_CAMERA.setProjectionType(ORTHO_PROJECTION);
 
     
-    prtInf.particleCount = 40000;
+    prtInf.particleCount = 20000;
     prtInf.activeRadius = 0.012;
     prtInf.fluidDensity = 1000.0f;
     prtInf.fluidViscosity = 1.5f;
@@ -470,8 +470,8 @@ void renderInit()
      glEnable(GL_POINT_SPRITE);
      glEnable(GL_DEPTH_TEST);
      //glEnable(GL_BLEND);
-   //  glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
-    // glBlendEquation(GL_FUNC_ADD);
+     glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
+     glBlendEquation(GL_FUNC_SUBTRACT);
      
 
 
@@ -506,6 +506,8 @@ Matrix4x4f modMtr;
 Matrix4x4f temp;
 
 void renderScene(void) {
+    clock_t tm1 = clock();
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);   
     mainCamera.setRenderMatrix(); 
     glGetFloatv(GL_MODELVIEW_MATRIX, cameraMtrMod.getDataPointer());
@@ -514,15 +516,30 @@ void renderScene(void) {
     flSolver.computeFluid(0.001);  
 
     
-        std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
+    POINT_SHADER.assignShader();    
+    POINT_SHADER.sendViewMatrices(cameraMtrPrj.getDataPointer(), cameraMtrMod.getDataPointer());
+   
+
+    std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
     std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
     setFramebufferOutputs();
 
     glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
-    flSolver.drawParticles();      
+    POINT_SHADER.sendInt("drawingPass", 1);
+       flSolver.drawParticles(); 
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glFramebufferTextureEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RENDERER.fluidDepthTexture2, 0);
+    POINT_SHADER.sendInt("drawingPass", 2);
+        flSolver.drawParticles(); 
+        glDisable(GL_BLEND);
+        glEnable(GL_DEPTH_TEST);
 
+
+    CHECK_ERROR;
     
+
     SMOOTH_SHADER.assignShader();
     std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
     std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
@@ -535,11 +552,11 @@ void renderScene(void) {
     glGetFloatv(GL_PROJECTION_MATRIX, prjMtr.getDataPointer());
     SMOOTH_SHADER.sendViewMatrices(prjMtr.getDataPointer(), modMtr.getDataPointer()); 
         
-
-    renderTextureOnScreen();
-    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
    
-    
+    renderTextureOnScreen();
+     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+   
+   
     std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
     std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
@@ -560,7 +577,7 @@ void renderScene(void) {
     glUseProgram(0);
     
     glDisable(GL_TEXTURE_CUBE_MAP);
-
+    
 
     mainCamera.setRenderMatrix(); 
     // drawCube();
@@ -568,4 +585,9 @@ void renderScene(void) {
     flSolver.drawContainer();
     glFlush();
 	glutSwapBuffers();
+
+            clock_t tm2 = clock();
+
+        printf("Elapsed time per iteration: %f \n", 1.0f / (((double) tm2 - tm1) / CLOCKS_PER_SEC)); 
+
 }

@@ -92,9 +92,9 @@ void main()
 	
     //vec3 outColor = difColor * alpha + reflBright * pvl;
 
-	color = vec4(alpha + pvl * reflBright);
+	color = vec4(difColor * alpha * (deepTexture * 5) + pvl * reflBright, 1.0) * 2.4;
     
-    //color = vec4(deepTexture);
+   // color = vec4(deepTexture * 5);
 	//deepColor = vec4(0, 1, 0.3, 1);
 //	color = vec4(nol * 0.5 + 0.5, 1);
 }

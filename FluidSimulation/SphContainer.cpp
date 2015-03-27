@@ -1,5 +1,5 @@
 #include "SphContainer.h"
-#include <time.h>
+
 float MPI = acos(-1.0);
 
 SphContainer::SphContainer(float x, float y, float z, float w, float l, float h)
@@ -220,20 +220,16 @@ void SphContainer::computeFluid(float dt)
         frc.coord.y = 0;
         frc.coord.z = -0.2;
 
-        clock_t tm1 = clock();
+        
 
         updateSimData(pData);
         
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 5; ++i)
         {
             prepareFluidGPU(pData, dt);   
             solveFluid(pData, dt,frc);
         }
-        clock_t tm2 = clock();
 
-        printf("Elapsed time per iteration: %f \n", 1.0f / (((double) tm2 - tm1) / CLOCKS_PER_SEC)); 
-
-        lstTime = ((double) tm2 - tm1) / CLOCKS_PER_SEC;
 
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaPosVbo, NULL));    
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaColorResource, NULL));
@@ -246,14 +242,6 @@ void SphContainer::computeFluid(float dt)
 
 void SphContainer::drawParticles()
 {     
-    POINT_SHADER.assignShader();
-    float prjMtr[16];
-    float mvMtr[16];
-    glGetFloatv(GL_MODELVIEW_MATRIX, mvMtr);
-    glGetFloatv(GL_PROJECTION_MATRIX, prjMtr);
-
-    POINT_SHADER.sendViewMatrices(prjMtr, mvMtr); 
-
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_COLOR_ARRAY);
     glBindBuffer(GL_ARRAY_BUFFER, particlePositionVBO1);
@@ -263,7 +251,6 @@ void SphContainer::drawParticles()
     glDrawArrays(GL_POINTS, 0, pData.count);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glDisableClientState(GL_VERTEX_ARRAY);    
-    glUseProgram(0);
 }
 
 
