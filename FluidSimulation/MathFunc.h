@@ -36,13 +36,12 @@ class Matrix4x4f
 
         void transpoze();
         Matrix4x4f getTranspozedMatrix();
+        void getMainMinor(float* arr);
 
 	private:
         float matrArr[4 * 4];
 
 };
-
-
 
 
 

@@ -1,6 +1,5 @@
 #version 400
 layout(location = 0) out vec4 color;
-layout(location = 2) out vec4 deepColor;
 
 uniform sampler2D tSam;
 uniform sampler2D deepSam;
@@ -13,6 +12,11 @@ uniform mat4 current_modelview_matrix;
 uniform mat4 oldProjection_matrix;
 uniform mat4 oldModelview_matrix;
 uniform mat4 inverted_matrix;
+
+uniform mat4 toWorldMatrix;
+uniform mat3 normalToWorld;
+
+
 uniform mat4 oldCamera_position;
 
 uniform vec3 camera_position;
@@ -58,43 +62,45 @@ vec3 getNormal(float depth, vec2 texCoord)
 	return normalize(cross(ddx, ddy));
 }
 
-float reflectance = 0.1;
+float reflectance = 0.3;
 
 vec3 difColor = vec3(0.3, 0.6, 1.0);
 
 void main()
 {
-	vec3 nol;
+	float depth = texture2D(tSam, txr).x; 
+    gl_FragDepth = 1;
+  	if(depth <= 1e-15)
+		return;
+        gl_FragDepth = depth * 0.5 + 0.5;
 
     
-	float deepTexture = texture2D(deepSam, txr).x;
-	float depth = texture2D(tSam, txr).x;
-     
-	vec3 eyeSpacePs = getEyespacePos(txr, depth);
-	gl_FragDepth = 1 - depth;
-	if(depth <= 1e-20)
-		return;
+
+    float deepTexture = texture2D(deepSam, txr).x;
+    vec3 nol;
+    vec3 eyeSpacePs = getEyespacePos(txr, depth);
+    vec4 worldSpacePs = toWorldMatrix * vec4(txr * 2 - 1, depth, 1);
+    worldSpacePs = worldSpacePs * (1.0 / worldSpacePs.w);
+	
+
 
 	nol = getNormal(depth,txr * 2 - vec2(1.0));
+
+    vec3 worldNormal = -normalize(normalToWorld * nol);
     
 	vec3 lightVector = normalize(lightPosition - eyeSpacePs);
-	vec3 viewVector = normalize(-eyeSpacePs);
-    vec3 reflRay = reflect(viewVector, nol);
-    vec3 refrRay = refract(viewVector, nol, 1.4);
+	vec3 viewVector = normalize(worldSpacePs.xyz - camera_position);
+    vec3 reflRay = reflect(viewVector, worldNormal);
+    vec3 refrRay = refract(viewVector, worldNormal, 1.4);
     float reflBright = texture(envir, reflRay).x;
     float refrBright = texture(envir, refrRay).x;
 
-	float alpha = dot(nol, lightVector) * 0.5 + 0.2;
-	
-	float vl = 1 - dot(nol, viewVector);
+	float vl = 1 - dot(worldNormal, viewVector);
 	float pvl = vl * vl;
 	pvl = pvl * pvl * vl * (1 - reflectance) + reflectance;
 	
-    //vec3 outColor = difColor * alpha + reflBright * pvl;
-
-	color = vec4(difColor * alpha * (deepTexture * 5) + pvl * reflBright, 1.0) * 2.4;
     
-   // color = vec4(deepTexture * 5);
-	//deepColor = vec4(0, 1, 0.3, 1);
-//	color = vec4(nol * 0.5 + 0.5, 1);
+	
+    color =  (vec4( difColor + refrBright + reflBright * pvl, 1.0) ) * 0.3;
+   // color = vec4(nol, 1.0);
 }

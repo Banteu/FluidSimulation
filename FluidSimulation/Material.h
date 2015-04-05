@@ -37,6 +37,7 @@ public:
     void sendDataBlock(int location, void* data);
     void sendArrayData(int location,int count, void* data);
     void sendMtr4x4Data(const char* name, int count, void* data);
+    void sendMtr3x3Data(const char* name, int count, void* data);
     void sendViewMatrices(float* projection, float* modelview);
     void sendFloat(const char* name, float value);
     void sendInt(const char* name, int value);

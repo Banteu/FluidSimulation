@@ -62,8 +62,10 @@ struct particleData
 struct forceData
 {
     float power;
+    float radius;
+    float r2;
     float3 coord;
-
+    float3 velocity;
 };
 
 

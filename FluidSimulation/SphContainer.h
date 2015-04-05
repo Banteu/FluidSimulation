@@ -31,7 +31,7 @@ public:
     void sendDataToGPU();
     void getDataFromGPU();
     void computeFluid(float dt);
-
+    void setPower(float power, float rad, vec3 pos, vec3 vel);
 
     ~SphContainer(void);
 
@@ -85,6 +85,8 @@ private:
 
     float divideStepSize;
 
+    vec3 deflectorPos;
+    float deflectorRad;
 
 
 

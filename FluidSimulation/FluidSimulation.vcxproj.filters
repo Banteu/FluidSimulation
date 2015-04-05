@@ -49,5 +49,11 @@
     <None Include="shader\SMOOTH_VX.vs">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="shader\sky_box_shader.vs">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="shader\sky_box_shader.fs">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

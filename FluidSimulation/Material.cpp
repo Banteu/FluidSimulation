@@ -165,3 +165,8 @@ void Shader::sendMtr4x4Data(const char* name, int count, void* data)
         uint unifLocation = glGetUniformLocation(shaderProgram, name);
         glUniformMatrix4fvARB(unifLocation, 1, false, (float*) data);
 }
+void Shader::sendMtr3x3Data(const char* name, int count, void* data)
+{
+        uint unifLocation = glGetUniformLocation(shaderProgram, name);
+        glUniformMatrix3fvARB(unifLocation, 1, false, (float*) data);
+}

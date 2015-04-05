@@ -10,9 +10,13 @@
 __constant__ float PI = 3.14159265359;
 __constant__ float airFriction = 1.0;
 
-__constant__ int dx[] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-__constant__ int dy[] = {-1, -1, -1, 0, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 0, 1, 1, 1, -1, -1, -1, 0, 0, 0, 1, 1, 1 };
-__constant__ int dz[] = {-1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1 };
+__constant__ int dx[] = {0, -1, -1, -1, -1, -1, -1, -1, -1,  0,  0,  0,  0, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+__constant__ int dy[] = {0, -1, -1,  0,  0,  0,  1,  1,  1, -1, -1, -1,  0, -1, 0, 1, 1, 1, -1, -1, -1, 0, 0, 0, 1, 1, 1 };
+__constant__ int dz[] = {0,  0,  1, -1,  0,  1, -1,  0,  1, -1,  0,  1, -1, -1, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1, -1, 0, 1 };
+
+//__constant__ char dx[] = {0, 0,  0,  0, 0, 1, -1};
+//__constant__ char dy[] = {0, 1, -1,  0, 0, 1, -1};
+//__constant__ char dz[] = {0, 0,  0, -1, 1, 1, -1};
 
 
 texture<float, 1, cudaReadModeElementType> texDens;
@@ -56,15 +60,15 @@ __device__ int3 getBlock(float3 pos)
 
 __device__ int getBlockHash(int3 bl)
 {
-    uint hsh = (((bl.x * 73856093) ^ (bl.y * 19349663) ^ (bl.z * 83492791))) & SIM_DATA->HASH_TABLE_SIZE;
+    uint hsh = (((bl.x * 73856093) + (bl.y * 19349663) + (bl.z * 83492791))) % SIM_DATA->HASH_TABLE_SIZE;
     return hsh;        
 }
 
 __device__ unsigned int getParticleHash(float3 bl)
 {
     float d = SIM_DATA->gridDimConst;
-    uint hsh = ((( (int) (bl.x / d) * 73856093) ^ ( (int) (bl.y / d) * 19349663) ^ ( (int) (bl.z / d) * 83492791)))
-        & SIM_DATA->HASH_TABLE_SIZE;         
+    uint hsh = ((( (int) (bl.x / d) * 73856093) + ( (int) (bl.y / d) * 19349663) + ( (int) (bl.z / d) * 83492791)))
+        % SIM_DATA->HASH_TABLE_SIZE;         
     return hsh;
 }
 
@@ -90,8 +94,11 @@ __global__ void computeDensities()
         float densLoc = 0;
         float dtr;
         
+        int totCount = 0;
+        
         for(int dir = 0; dir < DIRECTION_COUNT; ++dir)
         {
+            
             tempBlock.x = block.x + dx[dir];
             tempBlock.y = block.y + dy[dir];
             tempBlock.z = block.z + dz[dir];
@@ -102,7 +109,8 @@ __global__ void computeDensities()
                 continue;          
             for (int j = strt; j <= end; ++j)
             {   
-               
+              //  printf("NORMAL_DENSITY: %d dir: %d count: %d \n", id, dir, end - strt + 1);
+                totCount++;
                 ps4 = tex1Dfetch(texPos, j);
                 ms.x = ps4.x; ms.y = ps4.y; ms.z = ps4.z;
                 vc = ps - ms;
@@ -117,16 +125,102 @@ __global__ void computeDensities()
         SIM_DATA->dens[id] = SIM_DATA->diffKern * (densLoc * SIM_DATA->mass);    
 }
 
+
 #define SHARED_SIZE 27 * 30
 
 __global__ void shared_computeDensities()
 {
-    __shared__ float3 positions[SHARED_SIZE];
-    __shared__ int3 baseBlock;
-    __shared__ int offset;
+    extern __shared__ float3 shared_positions[];
+
+
+
+    float r2 = SIM_DATA->r2;
+
+
+    int currentBlockId = blockIdx.x;
+
+   __shared__ int firstInBlockId;
+   __shared__ int countInMainBlock;
+   __shared__ int3 mainBlock;
+   __shared__ int offsetForPrts;
+   __shared__ int firstInBigBlock;
+   uint blhsh;
+   int strt, end;
+
    
-   
+   if (threadIdx.x == 0)
+   {
+        firstInBlockId = SIM_DATA->zind[currentBlockId];
+        countInMainBlock = SIM_DATA->pind[currentBlockId];
+        float3 locMainPos = make_float3(tex1Dfetch(texPos, firstInBlockId));
+        mainBlock = getBlock(locMainPos);        
+        blhsh = getBlockHash(mainBlock);        
+        strt = tex1Dfetch(texStartHsh, blhsh);
+        firstInBigBlock = strt;
+        end = tex1Dfetch(texEndHsh, blhsh);       
+        offsetForPrts = 0;
+   }
+    __syncthreads();    
+    int3 locMainBlock = mainBlock;
+    int3 locTemp;
+    for (int dir = 0; dir < DIRECTION_COUNT; ++dir)
+    {
+        locTemp = make_int3(dx[dir], dy[dir], dz[dir]) + locMainBlock;
+        blhsh = getBlockHash(locTemp);
+        strt = tex1Dfetch(texStartHsh, blhsh);
+        end = tex1Dfetch(texEndHsh, blhsh);   
+        if (strt >= SIM_DATA->count)
+            continue;
+        int count = end - strt + 1;
+        int iter = 0;
+        while (blockDim.x * iter + threadIdx.x < count)
+        {
+            shared_positions[offsetForPrts + blockDim.x * iter + threadIdx.x] = make_float3(tex1Dfetch(texPos, blockDim.x * iter + threadIdx.x + strt));
+            iter++;
+        }
+    __syncthreads();
+    if(threadIdx.x == 0)
+        offsetForPrts += count;
+    __syncthreads();
+    }
+    
+    __syncthreads();
+
+    if (threadIdx.x >= countInMainBlock)
+        return; 
+    int cId = threadIdx.x + firstInBlockId;
+    
+    
+    float3 ps = shared_positions[firstInBlockId - firstInBigBlock + threadIdx.x]; //make_float3(tex1Dfetch(texPos, cId));   
+
+    int locMax = offsetForPrts;
+    float3 ms;
+    float3 vc;
+    float dtr;
+    float rd;
+    float densLoc = 0;
+    
+    
+    for (int j = 0; j < locMax; ++j)
+    {   
+        
+        ms = shared_positions[j];
+        
+        vc = ps - ms;
+        dtr = vc.x * vc.x + vc.y * vc.y + vc.z * vc.z;
+        if (dtr > r2)
+            continue;
+        rd = r2 - dtr;
+        densLoc += rd * rd * rd;              
+    }    
+
+    densLoc = SIM_DATA->diffKern * (densLoc * SIM_DATA->mass);  
+    
+    SIM_DATA->dens[cId] = densLoc;
+    
 }
+
+
 
 
 
@@ -341,7 +435,7 @@ __global__ void makeAlignedArray(int* blockCount, int perBlock)
     int cId = blockDim.x * blockIdx.x + threadIdx.x;
     if (cId >= SIM_DATA->HASH_TABLE_SIZE)
         return;
-    if (SIM_DATA->hashTableStart[cId] >= SIM_DATA->HASH_TABLE_SIZE)
+    if (SIM_DATA->hashTableStart[cId] > SIM_DATA->count)
         return;
     
     int count = SIM_DATA->hashTableEnd[cId] - SIM_DATA->hashTableStart[cId] + 1;
@@ -359,7 +453,7 @@ __global__ void makeAlignedArray(int* blockCount, int perBlock)
     }
 }
 
-__global__ void applyForce(forceData frc)
+__global__ void applyForce(forceData frc, float dt)
 {
     int cId = blockDim.x * blockIdx.x + threadIdx.x;
     if (cId >= SIM_DATA->count)
@@ -367,12 +461,20 @@ __global__ void applyForce(forceData frc)
 
 
     float4 ps = tex1Dfetch(texPos, cId);
+    float3 hVel = SIM_DATA->hVel[cId]  - frc.velocity;
+    float3 vel = SIM_DATA->vel[cId] - frc.velocity; 
     float3 vc = {ps.x - frc.coord.x, ps.y - frc.coord.y, ps.z - frc.coord.z};
+    float dtt = dot(vc, vc);
+    if ( dtt < frc.r2)
+    {
+        float norm = sqrt(dtt);
+        float d = frc.radius - norm;
+        vc = vc * (1 / norm);
 
 
-    vc = frc.power * vc / sqrt(dot(vc, vc));
-    SIM_DATA->force[cId] += vc;
-
+        SIM_DATA->hVel[cId] = hVel - (1 + 0.8 * d / (dt * getNorm(hVel))) * dot(vc, hVel) * vc;
+        SIM_DATA->vel[cId] = vel - (1 + 0.8 * d / (dt * getNorm(vel))) * dot(vc, vel) * vc;;
+    }
 }
 
 
@@ -384,10 +486,10 @@ void prepareFluidGPU(particleData pData, float dt)
      initArrays<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>();
      buildHashTable<<<(pData.count + 255) / 256, 256>>>();
      rearrangeParticle<<<(pData.count + 255) / 256, 256>>>();
-     //blockCount = 0;
-     //cudaMemcpy(blockGPUCount, &blockCount, sizeof(int), cudaMemcpyHostToDevice);
-     //makeAlignedArray<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>(blockGPUCount, 32);
-     //cudaMemcpy(&blockCount, blockGPUCount, sizeof(int), cudaMemcpyDeviceToHost);
+     blockCount = 0;
+     cudaMemcpy(blockGPUCount, &blockCount, sizeof(int), cudaMemcpyHostToDevice);
+     makeAlignedArray<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>(blockGPUCount, 32);
+     cudaMemcpy(&blockCount, blockGPUCount, sizeof(int), cudaMemcpyDeviceToHost);
      
      cudaMemcpy(pData.vel, pData.tempVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);
      cudaMemcpy(pData.hVel, pData.temphVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);
@@ -399,9 +501,9 @@ void solveFluid(particleData pData, float dt, forceData frc)
     int threads = 256;
     computeDensities<<<(pData.count + threads - 1) / threads, threads>>>();
     
-    //shared_computeDensities<<<blockCount, 32>>>();
+  //  shared_computeDensities<<<blockCount, 32, sizeof(float3) * 27 * 30>>>();
     solveFluid<<<(pData.count + threads - 1) / threads, threads>>>(dt);
-    applyForce<<<(pData.count + threads - 1) / threads, threads>>>(frc);
+    applyForce<<<(pData.count + threads - 1) / threads, threads>>>(frc, dt);
     updatePositions<<<(pData.count + threads - 1) / threads, threads>>>(dt);    
 }
 

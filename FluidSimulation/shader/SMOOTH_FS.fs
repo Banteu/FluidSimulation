@@ -12,15 +12,15 @@ uniform float texSizeY;
 
 //float rad = 10;
 
-float rad = 15;
+float rad = 10;
 float scale = 0.1;
-float intensityScale = 20.00;
+float intensityScale = 10.00;
 
 void main()
 {
 	float depth = texture2D(tSam, txr).x;
 	float deep = texture2D(deepSam, txr).x;
-	if(depth < 0.00001)
+	if(depth < 1e-20)
 		return;
 	float finDepth = 0;
     float finDeep = 0;
@@ -46,17 +46,14 @@ void main()
         weight2 += exp1;
 	}
 	}
-
 	if (weight > 0)
 	{
-		finDepth = finDepth / weight;
-        
+		finDepth = finDepth / weight;        
 	}
     if(weight2 > 0)
     {
         finDeep = finDeep / weight2;
     }
-
 	color = finDepth;
     deepColor = finDeep;
 }

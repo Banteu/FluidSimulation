@@ -1,5 +1,5 @@
 #include "SphContainer.h"
-
+#include <time.h>
 float MPI = acos(-1.0);
 
 SphContainer::SphContainer(float x, float y, float z, float w, float l, float h)
@@ -140,14 +140,14 @@ void SphContainer::createParticles(particleInfo pInfo)
     gpuErrchk( cudaGraphicsGLRegisterBuffer(&cudaPosVbo, particlePositionVBO1, cudaGraphicsMapFlagsWriteDiscard));
     gpuErrchk( cudaGraphicsGLRegisterBuffer(&cudaColorResource, particleColorVBO, cudaGraphicsMapFlagsWriteDiscard));
 
-    const uint HASH_TABLE_SIZE = 2097151;//0xfffff;
+    const uint HASH_TABLE_SIZE = 2453021;//prime number;
 
     particleBeg = new int[HASH_TABLE_SIZE];
     particleEnd = new int[HASH_TABLE_SIZE];
 
 
     // gpuErrchk( cudaMalloc(&particlePositionGPU, count * sizeof(float) * 3));
-    gpuErrchk( cudaMalloc(&pData.vel, particleCount * sizeof(float) * 4));
+    gpuErrchk( cudaMalloc(&pData.vel, particleCount * sizeof(float) * 3));
     gpuErrchk( cudaMalloc(&pData.posTextured, particleCount * sizeof(float) * 4));
     gpuErrchk( cudaMalloc(&pData.force, particleCount * sizeof(float) * 3));
     gpuErrchk( cudaMalloc(&pData.hVel, particleCount * sizeof(float) * 3));
@@ -157,14 +157,14 @@ void SphContainer::createParticles(particleInfo pInfo)
     gpuErrchk(cudaMalloc(&pData.hashTableStart, HASH_TABLE_SIZE * sizeof(int)));
     gpuErrchk(cudaMalloc(&pData.hashTableEnd, HASH_TABLE_SIZE * sizeof(int)));
 
-    gpuErrchk( cudaMalloc(&pData.tempVel, particleCount * sizeof(float) * 4));
+    gpuErrchk( cudaMalloc(&pData.tempVel, particleCount * sizeof(float) * 3));
     gpuErrchk( cudaMalloc(&pData.temphVel, particleCount * sizeof(float) * 3));
 
 
 
     
    // gpuErrchk(cudaMemcpy(particlePositionGPU, particlePosition, count * sizeof(float) * 3, cudaMemcpyHostToDevice));
-    gpuErrchk(cudaMemcpy(pData.vel, particleVelocity, particleCount * sizeof(float) * 4, cudaMemcpyHostToDevice));
+    gpuErrchk(cudaMemcpy(pData.vel, particleVelocity, particleCount * sizeof(float) * 3, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(pData.hVel, particleHvelocity, particleCount * sizeof(float) * 3, cudaMemcpyHostToDevice));
    // gpuErrchk(cudaMemcpy(pData.dens, particleDensity, particleCount * sizeof(float), cudaMemcpyHostToDevice));
    // gpuErrchk(cudaMemcpy(pData.pind, particleIndex, particleCount * sizeof(int), cudaMemcpyHostToDevice));
@@ -207,6 +207,15 @@ float lstTime = 1;
 forceData frc;
 
 
+void SphContainer::setPower(float power, float rad, vec3 pos, vec3 vel)
+{
+    frc.coord = make_float3(pos.x,  pos.y, pos.z);
+    frc.velocity = make_float3(vel.x,  vel.y, vel.z);
+    frc.radius = rad;
+    frc.r2 = rad * rad;
+    frc.power = power;
+}
+
 void SphContainer::computeFluid(float dt)
 {
         gpuErrchk( cudaGraphicsMapResources(1, &cudaPosVbo, NULL));
@@ -215,21 +224,23 @@ void SphContainer::computeFluid(float dt)
         gpuErrchk( cudaGraphicsMapResources(1, &cudaColorResource, NULL));
         gpuErrchk( cudaGraphicsResourceGetMappedPointer((void** )&pData.color, &size, cudaColorResource));
           
-        frc.power = 0;
-        frc.coord.x = 0;
-        frc.coord.y = 0;
-        frc.coord.z = -0.2;
 
-        
 
         updateSimData(pData);
         
-        for (int i = 0; i < 5; ++i)
+        for (int i = 0; i < 3; ++i)
         {
+            
+
             prepareFluidGPU(pData, dt);   
             solveFluid(pData, dt,frc);
+            
+            
         }
 
+        
+        cudaMemcpy(particleZindex, pData.zind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
+        cudaMemcpy(particleIndex, pData.pind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
 
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaPosVbo, NULL));    
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaColorResource, NULL));
@@ -261,6 +272,7 @@ void SphContainer::drawContainer()
     vec3* p = containerDrawVertex;
     for (int i = 0; i < 6; ++i)
     {
+     
         glBegin(GL_LINE_LOOP);
         glVertex3fv((float*)p++);
         glVertex3fv((float*)p++);

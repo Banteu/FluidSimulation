@@ -298,6 +298,22 @@ Matrix4x4f getRotateMatrix(const float angle, const vec3& axisGlobal)
 	return Matrix4x4f(rotArr);
 }
 
+void Matrix4x4f::getMainMinor(float* arr)
+{
+    arr[0] = matrArr[0];
+    arr[1] = matrArr[1];
+    arr[2] = matrArr[2];
+
+    arr[3] = matrArr[4];
+    arr[4] = matrArr[5];
+    arr[5] = matrArr[6];
+
+    arr[6] = matrArr[8];
+    arr[7] = matrArr[9];
+    arr[8] = matrArr[10];
+
+}
+
 Matrix4x4f getIdentityMatrix()
 {
 	float arr[] = {1, 0, 0, 0,

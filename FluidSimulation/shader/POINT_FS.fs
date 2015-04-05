@@ -7,7 +7,7 @@ in vec3 camSpacePos;
 uniform int drawingPass;
 
 in float sphereRad;
-float sphr = 0.007;
+float sphr = 0.004;
 void main(void)
 {
 	
@@ -26,6 +26,6 @@ void main(void)
     }
     else if(drawingPass == 2)
     {
-        color =  exp(-rr) * 0.5;
+        color = exp(-rr) * 0.5;
     }
 }
