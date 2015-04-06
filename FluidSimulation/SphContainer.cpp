@@ -4,70 +4,70 @@ float MPI = acos(-1.0);
 
 SphContainer::SphContainer(float x, float y, float z, float w, float l, float h)
 {    
-    
-        containerDrawVertex = new vec3[24];
-        containerDrawIndex = new uint[24];
-    
-        float dx = x + w / 2;
-        float dxm = x - w / 2;
-        float dy = y + l / 2;
-        float dym = y - l / 2;
-        float dz = z + h / 2;
-        float dzm = z - h / 2;
 
-        containerDrawVertex[0] = vec3(dxm, dym, dzm);
-        containerDrawVertex[1] = vec3(dx, dym, dzm);
-        containerDrawVertex[2] = vec3(dx, dy, dzm);
-        containerDrawVertex[3] = vec3(dxm, dy, dzm);
+    containerDrawVertex = new vec3[24];
+    containerDrawIndex = new uint[24];
 
-        containerDrawVertex[4] = vec3(dxm, dym, dz);
-        containerDrawVertex[5] = vec3(dxm, dy, dz);
-        containerDrawVertex[6] = vec3(dx, dy, dz);
-        containerDrawVertex[7] = vec3(dx, dym, dz);
+    float dx = x + w / 2;
+    float dxm = x - w / 2;
+    float dy = y + l / 2;
+    float dym = y - l / 2;
+    float dz = z + h / 2;
+    float dzm = z - h / 2;
 
+    containerDrawVertex[0] = vec3(dxm, dym, dzm);
+    containerDrawVertex[1] = vec3(dx, dym, dzm);
+    containerDrawVertex[2] = vec3(dx, dy, dzm);
+    containerDrawVertex[3] = vec3(dxm, dy, dzm);
 
-        containerDrawVertex[8] = vec3(dxm, dy, dzm);
-        containerDrawVertex[9] = vec3(dx, dy, dzm);
-        containerDrawVertex[10] = vec3(dx, dy, dz);
-        containerDrawVertex[11] = vec3(dxm, dy, dz);
+    containerDrawVertex[4] = vec3(dxm, dym, dz);
+    containerDrawVertex[5] = vec3(dxm, dy, dz);
+    containerDrawVertex[6] = vec3(dx, dy, dz);
+    containerDrawVertex[7] = vec3(dx, dym, dz);
 
 
-        containerDrawVertex[12] = vec3(dxm, dym, dzm);
-        containerDrawVertex[13] = vec3(dxm, dym, dz);
-        containerDrawVertex[14] = vec3(dx, dym, dz);
-        containerDrawVertex[15] = vec3(dx, dym, dzm);
+    containerDrawVertex[8] = vec3(dxm, dy, dzm);
+    containerDrawVertex[9] = vec3(dx, dy, dzm);
+    containerDrawVertex[10] = vec3(dx, dy, dz);
+    containerDrawVertex[11] = vec3(dxm, dy, dz);
 
-        containerDrawVertex[16] = vec3(dx, dym, dzm);
-        containerDrawVertex[17] = vec3(dx, dym, dz);
-        containerDrawVertex[18] = vec3(dx, dy, dz);
-        containerDrawVertex[19] = vec3(dx, dy, dzm);
 
-        containerDrawVertex[20] = vec3(dxm, dym, dzm);
-        containerDrawVertex[21] = vec3(dxm, dy, dzm);
-        containerDrawVertex[22] = vec3(dxm, dy, dz);
-        containerDrawVertex[23] = vec3(dxm, dym, dz);
+    containerDrawVertex[12] = vec3(dxm, dym, dzm);
+    containerDrawVertex[13] = vec3(dxm, dym, dz);
+    containerDrawVertex[14] = vec3(dx, dym, dz);
+    containerDrawVertex[15] = vec3(dx, dym, dzm);
 
-        for (int i = 0; i < 24; ++i)
-        {
-            containerDrawIndex[i] = i;
-        }
-        centerX = x;
-        centerY = y;
-        centerZ = z;
+    containerDrawVertex[16] = vec3(dx, dym, dzm);
+    containerDrawVertex[17] = vec3(dx, dym, dz);
+    containerDrawVertex[18] = vec3(dx, dy, dz);
+    containerDrawVertex[19] = vec3(dx, dy, dzm);
 
-        width = w;
-        length = l;
-        height = h;
+    containerDrawVertex[20] = vec3(dxm, dym, dzm);
+    containerDrawVertex[21] = vec3(dxm, dy, dzm);
+    containerDrawVertex[22] = vec3(dxm, dy, dz);
+    containerDrawVertex[23] = vec3(dxm, dym, dz);
+
+    for (int i = 0; i < 24; ++i)
+    {
+        containerDrawIndex[i] = i;
+    }
+    centerX = x;
+    centerY = y;
+    centerZ = z;
+
+    width = w;
+    length = l;
+    height = h;
 
 
 }
 
 void SphContainer::createParticles(particleInfo pInfo)
 {
-        
+
     particleCount = pInfo.particleCount;
-    
-   
+
+
     rest_density = pInfo.fluidDensity;
     viscosity = pInfo.fluidViscosity;
     radius = pInfo.activeRadius;
@@ -77,9 +77,9 @@ void SphContainer::createParticles(particleInfo pInfo)
     mass = 4.0f * r3 * rest_density * MPI / 3.0f / 19;
 
     float OFFSET = radius * 0.6;
-    
 
-    
+
+
 
     particlePosition = new vec3[particleCount];
     particleVelocity = new vec4[particleCount];
@@ -88,7 +88,7 @@ void SphContainer::createParticles(particleInfo pInfo)
     particleColor = new vec3[particleCount];
     particleIndex = new int[particleCount];
     particleZindex = new int[particleCount];
-   
+
 
     for (int i = 0; i < particleCount; ++i)
     {
@@ -101,8 +101,8 @@ void SphContainer::createParticles(particleInfo pInfo)
         particleColor[i] = vec3(1, 1, (rand() % 100) / 500  + 0.05);
     }
 
-    
-    
+
+
 
     vec3 tempPos = vec3(centerX - width / 2 + OFFSET, centerY - length / 2 + OFFSET,
         centerZ - height / 2 + OFFSET);
@@ -162,15 +162,15 @@ void SphContainer::createParticles(particleInfo pInfo)
 
 
 
-    
-   // gpuErrchk(cudaMemcpy(particlePositionGPU, particlePosition, count * sizeof(float) * 3, cudaMemcpyHostToDevice));
+
+    // gpuErrchk(cudaMemcpy(particlePositionGPU, particlePosition, count * sizeof(float) * 3, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(pData.vel, particleVelocity, particleCount * sizeof(float) * 3, cudaMemcpyHostToDevice));
     gpuErrchk(cudaMemcpy(pData.hVel, particleHvelocity, particleCount * sizeof(float) * 3, cudaMemcpyHostToDevice));
-   // gpuErrchk(cudaMemcpy(pData.dens, particleDensity, particleCount * sizeof(float), cudaMemcpyHostToDevice));
-   // gpuErrchk(cudaMemcpy(pData.pind, particleIndex, particleCount * sizeof(int), cudaMemcpyHostToDevice));
-   // gpuErrchk(cudaMemcpy(pData.zind, particleZindex, particleCount * sizeof(int), cudaMemcpyHostToDevice));
-    
-    
+    // gpuErrchk(cudaMemcpy(pData.dens, particleDensity, particleCount * sizeof(float), cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(pData.pind, particleIndex, particleCount * sizeof(int), cudaMemcpyHostToDevice));
+    // gpuErrchk(cudaMemcpy(pData.zind, particleZindex, particleCount * sizeof(int), cudaMemcpyHostToDevice));
+
+
     pData.gravity.x = 0;
     pData.gravity.y = 0;
     pData.gravity.z = -9.8;
@@ -193,13 +193,13 @@ void SphContainer::createParticles(particleInfo pInfo)
 
     pData.maxAcceleration = 1000;
     pData.wallDamping = 0.1;
-    
+
     pData.diffKern = 315.0f / (64.0 * MPI * r3 * r3 * r3);
     pData.pressKern = 45.0 / (MPI * r3 * r3);
     pData.viscKern = 45.0 / (MPI * r3 * r3);
 
     pData.HASH_TABLE_SIZE = HASH_TABLE_SIZE;
-    
+
     bindToTextures(&pData);
 }
 
@@ -218,29 +218,27 @@ void SphContainer::setPower(float power, float rad, vec3 pos, vec3 vel)
 
 void SphContainer::computeFluid(float dt)
 {
-        gpuErrchk( cudaGraphicsMapResources(1, &cudaPosVbo, NULL));
-        size_t size;
-        gpuErrchk( cudaGraphicsResourceGetMappedPointer((void** )&pData.pos, &size, cudaPosVbo));        
-        gpuErrchk( cudaGraphicsMapResources(1, &cudaColorResource, NULL));
-        gpuErrchk( cudaGraphicsResourceGetMappedPointer((void** )&pData.color, &size, cudaColorResource));
-          
+    gpuErrchk( cudaGraphicsMapResources(1, &cudaPosVbo, NULL));
+    size_t size;
+    gpuErrchk( cudaGraphicsResourceGetMappedPointer((void** )&pData.pos, &size, cudaPosVbo));        
+    gpuErrchk( cudaGraphicsMapResources(1, &cudaColorResource, NULL));
+    gpuErrchk( cudaGraphicsResourceGetMappedPointer((void** )&pData.color, &size, cudaColorResource));
 
 
-        updateSimData(pData);
-        
-        for (int i = 0; i < 3; ++i)
-        {
-            
 
-            prepareFluidGPU(pData, dt);   
-            solveFluid(pData, dt,frc);
-            
-            
-        }
+    updateSimData(pData);
 
-        
-        cudaMemcpy(particleZindex, pData.zind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
-        cudaMemcpy(particleIndex, pData.pind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
+    for (int i = 0; i < 3; ++i)
+    {
+        prepareFluidGPU(pData, dt);   
+        solveFluid(pData, dt,frc);
+
+
+    }
+
+
+    cudaMemcpy(particleZindex, pData.zind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
+    cudaMemcpy(particleIndex, pData.pind, sizeof(int) * particleCount, cudaMemcpyDeviceToHost);
 
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaPosVbo, NULL));    
     gpuErrchk( cudaGraphicsUnmapResources(1, &cudaColorResource, NULL));
@@ -268,11 +266,11 @@ void SphContainer::drawParticles()
 
 void SphContainer::drawContainer()
 {
-    
+
     vec3* p = containerDrawVertex;
     for (int i = 0; i < 6; ++i)
     {
-     
+
         glBegin(GL_LINE_LOOP);
         glVertex3fv((float*)p++);
         glVertex3fv((float*)p++);
@@ -281,7 +279,7 @@ void SphContainer::drawContainer()
         glEnd();    
     }
 
-    
+
 }
 
 

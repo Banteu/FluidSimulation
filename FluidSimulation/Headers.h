@@ -25,9 +25,5 @@ class Shader;
 #include "SphCpuSolver.h"
 #include "MathFunc.h"
 #include <string>
-
-extern Shader POINT_SHADER;
-
 bool createWindow(int argc, char **argv);
-
 #endif

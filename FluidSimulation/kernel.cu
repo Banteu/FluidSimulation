@@ -472,8 +472,9 @@ __global__ void applyForce(forceData frc, float dt)
         float norm = sqrt(dtt);
         float d = frc.radius - norm;
         vc = vc * (1 / norm);
-        SIM_DATA->hVel[cId] = hVel - (1 + 0.8 * d / (dt * getNorm(hVel))) * dot(vc, hVel) * vc;
-        SIM_DATA->vel[cId] = vel - (1 + 0.8 * d / (dt * getNorm(vel))) * dot(vc, vel) * vc;;
+        SIM_DATA->pos[cId] = vc * frc.radius;
+        SIM_DATA->hVel[cId] = vc * frc.power;
+        SIM_DATA->vel[cId] = vc * frc.power;
     }
 }
 

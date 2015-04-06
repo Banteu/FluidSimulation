@@ -10,8 +10,6 @@ in vec2 txr;
 uniform float texSizeX;
 uniform float texSizeY;
 
-//float rad = 10;
-
 float rad = 14;
 float scale = 0.08;
 float intensityScale = 10.00;
@@ -28,32 +26,34 @@ void main()
 
 
 	float weight = 0;
-  //  float weight2  = 0;
+    // float weight2  = 0;
+
 	for(float y = -rad; y <= rad; ++y)
 	{
-	for (float x = -rad; x <= rad; ++x)
-	{
-		float dst = abs(x) + abs(y);
-		float r = dst * scale;
-		float exp1 = exp(-r * r);
-		float depth2 = texture2D(tSam, txr + vec2(x * texSizeX, y * texSizeY)).x;
-       // float deep2 = texture2D(deepSam, txr + vec2(x * texSizeX, y * texSizeY)).x;
-		float r2 = (depth2 - depth) * intensityScale;
-		float ex2 = exp(-r2 * r2);
-		finDepth += depth2 * exp1 * ex2;
-      //  finDeep += deep2 * exp1;
-		weight += exp1 * ex2;
-        //weight2 += exp1;
-	}
+	    for (float x = -rad; x <= rad; ++x)
+	    {
+		    float dst = abs(x) + abs(y);
+		    float r = dst * scale;
+		    float exp1 = exp(-r * r);
+		    float depth2 = texture2D(tSam, txr + vec2(x * texSizeX, y * texSizeY)).x;
+            
+		    float r2 = (depth2 - depth) * intensityScale;
+		    float ex2 = exp(-r2 * r2);
+		    finDepth += depth2 * exp1 * ex2;
+            
+		    weight += exp1 * ex2;
+            // float deep2 = texture2D(deepSam, txr + vec2(x * texSizeX, y * texSizeY)).x;
+            // finDeep += deep2 * exp1;
+            //weight2 += exp1;
+	    }
 	}
 	if (weight > 0)
 	{
 		finDepth = finDepth / weight;        
 	}
-    //if(weight2 > 0)
-   // {
-    //    finDeep = finDeep / weight2;
-   // }
+     //if(weight2 > 0)
+     // {
+     //    finDeep = finDeep / weight2;
+     // }
 	color = finDepth;
- //   deepColor = finDeep;
 }
