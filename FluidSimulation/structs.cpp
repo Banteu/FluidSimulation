@@ -301,6 +301,12 @@ bool pointIsInTriangle(const vec2& point,const vec2& a, const vec2& b, const vec
 	 return vec4( x - b.x, y - b.y, z - b.z, w - b.w);
  }
 
+  vec4 vec4::operator*(const float vl)
+ {
+	 return vec4( x * vl, y * vl, z * vl, w * vl);
+ }
+
+
  vec4::vec4(vec3 in)
  {
 	x = in.x;

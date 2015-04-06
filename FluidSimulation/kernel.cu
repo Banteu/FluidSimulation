@@ -31,6 +31,7 @@ int blockCount;
 int* blockGPUCount;
 
 
+
 __device__ float getNorm(float3 obj)
 {
     return sqrt(obj.x * obj.x + obj.y * obj.y + obj.z * obj.z);
@@ -461,17 +462,16 @@ __global__ void applyForce(forceData frc, float dt)
 
 
     float4 ps = tex1Dfetch(texPos, cId);
-    float3 hVel = SIM_DATA->hVel[cId]  - frc.velocity;
-    float3 vel = SIM_DATA->vel[cId] - frc.velocity; 
+    float3 hVel = SIM_DATA->hVel[cId];
+    float3 vel = SIM_DATA->vel[cId];
     float3 vc = {ps.x - frc.coord.x, ps.y - frc.coord.y, ps.z - frc.coord.z};
     float dtt = dot(vc, vc);
+    dt = dt * 3;
     if ( dtt < frc.r2)
     {
         float norm = sqrt(dtt);
         float d = frc.radius - norm;
         vc = vc * (1 / norm);
-
-
         SIM_DATA->hVel[cId] = hVel - (1 + 0.8 * d / (dt * getNorm(hVel))) * dot(vc, hVel) * vc;
         SIM_DATA->vel[cId] = vel - (1 + 0.8 * d / (dt * getNorm(vel))) * dot(vc, vel) * vc;;
     }
@@ -486,10 +486,10 @@ void prepareFluidGPU(particleData pData, float dt)
      initArrays<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>();
      buildHashTable<<<(pData.count + 255) / 256, 256>>>();
      rearrangeParticle<<<(pData.count + 255) / 256, 256>>>();
-     blockCount = 0;
-     cudaMemcpy(blockGPUCount, &blockCount, sizeof(int), cudaMemcpyHostToDevice);
-     makeAlignedArray<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>(blockGPUCount, 32);
-     cudaMemcpy(&blockCount, blockGPUCount, sizeof(int), cudaMemcpyDeviceToHost);
+   //  blockCount = 0;
+   //  cudaMemcpy(blockGPUCount, &blockCount, sizeof(int), cudaMemcpyHostToDevice);
+   //  makeAlignedArray<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>(blockGPUCount, 32);
+  //   cudaMemcpy(&blockCount, blockGPUCount, sizeof(int), cudaMemcpyDeviceToHost);
      
      cudaMemcpy(pData.vel, pData.tempVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);
      cudaMemcpy(pData.hVel, pData.temphVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);

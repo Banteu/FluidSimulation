@@ -66,6 +66,7 @@ struct vec4
 
 	vec4 operator+(const vec4& b);
 	vec4 operator-(const vec4& b);
+    vec4 operator*(const float val);
 
 
 };

@@ -1,6 +1,33 @@
 #include <cstdio>
 #include "Headers.h"
 #include <time.h>
+
+
+void CHECK_ERRORS(int line)
+{
+    GLenum error = glGetError();
+    if (error != GL_NO_ERROR)
+    {
+        printf("OPENGL ERROR: FILE %s, LINE: %d", __FILE__, line);
+        exit(-1);
+    }
+
+}
+
+void CHECK_FRAMEBUFFER_ERRS(int line)
+{
+    GLenum error = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
+    if (error != GL_FRAMEBUFFER_COMPLETE)
+    {
+        printf("FRAMEBUFFER INCOMPLETE: FILE %s, LINE: %d", __FILE__, line);
+        exit(-1);
+    }
+
+}
+
+#define CHECK_ERROR CHECK_ERRORS(__LINE__)
+#define CHECK_FRAMEBUFFER CHECK_FRAMEBUFFER_ERRS(__LINE__);
+
 Shader POINT_SHADER; 
 Shader SMOOTH_SHADER;
 Shader FINAL_RENDER_SHADER;
@@ -24,11 +51,41 @@ uint cubeMapEnv = 0;
 
 byte* checkerTextureColor;
 
-vec3 deflector;
-float deflectorRadius = 0.05;
+vec3 deflector(0,0,0);
+float deflectorRadius = 0.10;
 
 int oldX = 0;
 int oldY = 0;   
+
+double REDUCTION = 1.0;
+
+vec3* containerDrawVertex;
+uint* containerDrawIndex;
+
+float* texturetst = 0;
+
+bool rightClick = false;
+bool renderBeauty = true;
+
+
+float size = 25;
+particleInfo prtInf;
+
+//SphCpuSolver flSolver(0, 0, 0, 1, 1, 1);
+
+SphContainer flSolver(0, 0, 0, 0.7, 0.7, 0.7);
+
+GLenum drbrf[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
+
+
+Matrix4x4f cameraMtrPrj;
+Matrix4x4f cameraMtrMod;
+
+Matrix4x4f prjMtr;
+Matrix4x4f modMtr;
+Matrix4x4f temp;
+
+float matrForNormals[9];
 
 
 void generateCheckerTexture()
@@ -49,7 +106,7 @@ void generateCheckerTexture()
                 {
                     checkerTextureColor[ (i + c) * size + j + k] = color1;
                 }
-            std::swap(color1, color2);
+                std::swap(color1, color2);
         }
         std::swap(color1, color2);
 
@@ -57,29 +114,28 @@ void generateCheckerTexture()
         color2 = rand() % 250;
 
     }
-        glEnable(GL_TEXTURE_CUBE_MAP);
-        glGenTextures(1, &cubeMapEnv);
-        glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,     GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T,     GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,     GL_CLAMP_TO_EDGE);
+    glEnable(GL_TEXTURE_CUBE_MAP);
+    glGenTextures(1, &cubeMapEnv);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S,     GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T,     GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R,     GL_CLAMP_TO_EDGE);
 
-        for (int i = 0; i < 6; ++i)
-        {
-            GLenum trg = GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
-            glTexImage2D(trg, 0, GL_RED, size, size, 0, GL_RED, GL_UNSIGNED_BYTE, checkerTextureColor);        
-        }
-        delete[] checkerTextureColor;
-        glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
-        glDisable(GL_TEXTURE_CUBE_MAP);
+    for (int i = 0; i < 6; ++i)
+    {
+        GLenum trg = GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
+        glTexImage2D(trg, 0, GL_RED, size, size, 0, GL_RED, GL_UNSIGNED_BYTE, checkerTextureColor);        
+    }
+    delete[] checkerTextureColor;
+    glBindTexture(GL_TEXTURE_CUBE_MAP, 0);
+    glDisable(GL_TEXTURE_CUBE_MAP);
 
 
 }
 
-vec3* containerDrawVertex;
-uint* containerDrawIndex;
+
 void buildCube(float x,float y, float z, float w, float h, float l){
     containerDrawVertex = new vec3[24];
     containerDrawIndex = new uint[24];
@@ -132,47 +188,16 @@ void buildCube(float x,float y, float z, float w, float h, float l){
 void drawCube()
 {
     glEnable(GL_TEXTURE_CUBE_MAP);
-     glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
-    
+    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
+
     glColor3f(1, 1, 1);
     glEnableClientState(GL_VERTEX_ARRAY);
     glVertexPointer(3, GL_FLOAT, 0, containerDrawVertex);
     glDrawElements(GL_QUADS, 24, GL_UNSIGNED_INT, containerDrawIndex);
     glDisableClientState(GL_VERTEX_ARRAY);
-    
+
     glDisable(GL_TEXTURE_CUBE_MAP);
 }
-
-
-float* texturetst = 0;
-
-
-void CHECK_ERRORS(int line)
-{
-    GLenum error = glGetError();
-    if (error != GL_NO_ERROR)
-    {
-        printf("OPENGL ERROR: FILE %s, LINE: %d", __FILE__, line);
-        exit(-1);
-    }
-
-}
-
-void CHECK_FRAMEBUFFER_ERRS(int line)
-{
-    GLenum error = glCheckFramebufferStatusEXT(GL_FRAMEBUFFER);
-    if (error != GL_FRAMEBUFFER_COMPLETE)
-    {
-        printf("FRAMEBUFFER INCOMPLETE: FILE %s, LINE: %d", __FILE__, line);
-        exit(-1);
-    }
-
-}
-
-#define CHECK_ERROR CHECK_ERRORS(__LINE__)
-#define CHECK_FRAMEBUFFER CHECK_FRAMEBUFFER_ERRS(__LINE__);
-
-bool rightClick = false;
 
 void mouseClick(int button, int state, int x, int y)
 {
@@ -185,75 +210,57 @@ void mouseClick(int button, int state, int x, int y)
 
 };
 
+void keyboardPress(unsigned char key, int x, int y)
+{
+    if (key == 'r')
+        renderBeauty = !renderBeauty;
+}
+
 struct RenderSystem
 {
     uint framebuffer;
     uint depthBuffer;
-    
+
     uint depthTexture1;    
     uint fluidDepthTexture1;
-    
+
     uint depthTexture2;    
     uint fluidDepthTexture2;
-    
+
 
     uint normalTexture;
 
 } RENDERER;
 
-float size = 25;
-particleInfo prtInf;
-
-//SphCpuSolver flSolver(0, 0, 0, 1, 1, 1);
-
-SphContainer flSolver(0, 0, 0, 0.7, 0.7, 0.7);
-
-extern "C" _declspec(dllexport) void resetSimulation()
-{    
-} 
-
-
-extern "C" _declspec(dllexport) void updateRealTimeParams(float viscosity, float dt, float stiffness)
-{
-}
-
-extern "C" _declspec(dllexport) void createPrts(uint count, float volume, float viscosity,
-                                                float stifness, float density, float dti)
-{
-    printf("Count: %d volume: %f viscosity: %f stifness: %f density: %f time step: %f", count, volume, viscosity,
-        stifness, density, dti);
-
-}
 
 void setFramebufferOutputs();
 
-GLenum drbrf[] = {GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
 
 void generateBuffers()
 {
     glEnable(GL_TEXTURE_2D);
-    
-    
+
+
     glGenTextures(1, &RENDERER.depthTexture1);
     glBindTexture(GL_TEXTURE_2D, RENDERER.depthTexture1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, textureWidth, textureHeight, 0, GL_RED, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        glGenTextures(1, &RENDERER.depthTexture2);
+    glGenTextures(1, &RENDERER.depthTexture2);
     glBindTexture(GL_TEXTURE_2D, RENDERER.depthTexture2);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, textureWidth, textureHeight, 0, GL_RED, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    
-    
+
+
     glGenTextures(1, &RENDERER.fluidDepthTexture1);
     glBindTexture(GL_TEXTURE_2D, RENDERER.fluidDepthTexture1);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, textureWidth, textureHeight, 0, GL_RED, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-        
+
     glGenTextures(1, &RENDERER.fluidDepthTexture2);
     glBindTexture(GL_TEXTURE_2D, RENDERER.fluidDepthTexture2);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, textureWidth, textureHeight, 0, GL_RED, GL_FLOAT, 0);
@@ -265,7 +272,7 @@ void generateBuffers()
     CHECK_ERROR;
 
     glGenFramebuffersEXT(1, &RENDERER.framebuffer);
-    
+
     glGenRenderbuffersEXT(1, &RENDERER.depthBuffer);
     glBindRenderbufferEXT(GL_RENDERBUFFER, RENDERER.depthBuffer);
     glRenderbufferStorageEXT(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, textureWidth, textureHeight);
@@ -281,20 +288,20 @@ void generateBuffers()
     */
 
     glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
-    
+
     glFramebufferRenderbufferEXT(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RENDERER.depthBuffer);
-    
+
 
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D, RENDERER.depthTexture2, 0);
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, RENDERER.fluidDepthTexture2, 0);
     CHECK_FRAMEBUFFER;
-    
+
     glDrawBuffers(2, drbrf);
 
 
     glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-    
-    
+
+
     CHECK_ERROR;
 
     glDisable(GL_TEXTURE_2D);
@@ -315,23 +322,21 @@ void setFramebufferOutputs()
 
 }
 
-
-
 void renderTextureOnScreen()
 {
-    
+
     glEnableClientState(GL_VERTEX_ARRAY);
     glEnableClientState(GL_TEXTURE_COORD_ARRAY);
-   
+
 
     glEnable(GL_TEXTURE_2D);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, RENDERER.depthTexture1);
-    
+
 
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_2D, RENDERER.fluidDepthTexture1);
-    
+
 
     glBindBuffer(GL_ARRAY_BUFFER, scrVerBuffer);
     glVertexPointer(3, GL_FLOAT, 0, 0);
@@ -344,49 +349,38 @@ void renderTextureOnScreen()
     glDisableClientState(GL_TEXTURE_COORD_ARRAY);
     glActiveTexture(GL_TEXTURE0);
     glDisable(GL_TEXTURE_2D);
-  //  glActiveTexture(GL_TEXTURE1);
-  //  glDisable(GL_TEXTURE_2D);
+    //  glActiveTexture(GL_TEXTURE1);
+    //  glDisable(GL_TEXTURE_2D);
     //glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 }
-
 
 void deleteBuffers()
 {
     glDeleteTextures(1, &RENDERER.fluidDepthTexture1);
     glDeleteTextures(1, &RENDERER.depthTexture1);
-    
-
-    glDeleteTextures(1, &RENDERER.fluidDepthTexture2);
-    
-    glDeleteTextures(1, &RENDERER.depthTexture2);
-    
+    glDeleteTextures(1, &RENDERER.fluidDepthTexture2);    
+    glDeleteTextures(1, &RENDERER.depthTexture2);    
     glDeleteRenderbuffersEXT(1, &RENDERER.depthBuffer);
     glDeleteFramebuffersEXT(1, &RENDERER.framebuffer);
-
-  
-
 }
 
-double REDUCTION = 1.0;
-
-
 void changeSize(int w, int h) {
-    
+
     mainScreenWidth = w;
     mainScreenHeight = h;    
 
     textureHeight = mainScreenHeight / REDUCTION;
     textureWidth = mainScreenWidth / REDUCTION;
-    
-    
+
+
     SMOOTH_SHADER.sendFloat("texSizeX", 1.0f / textureWidth);
     SMOOTH_SHADER.sendFloat("texSizeY", 1.0f / textureHeight);
 
     FINAL_RENDER_SHADER.sendFloat("texSizeX", 1.0f / mainScreenWidth);
     FINAL_RENDER_SHADER.sendFloat("texSizeY", 1.0f / mainScreenHeight);
 
-    
+
     SMOOTH_SHADER.sendInt("tSam", 0);
     SMOOTH_SHADER.sendInt("deepSam", 1);
 
@@ -403,77 +397,96 @@ void changeSize(int w, int h) {
     deleteBuffers();
     generateBuffers();
     delete[] texturetst;
-         texturetst = new float[textureHeight * textureWidth];
-     for (int i = 0; i < textureHeight * textureWidth; ++i)
-         texturetst[i] = (rand() % 1000) / 1000.0;
+    texturetst = new float[textureHeight * textureWidth];
+    for (int i = 0; i < textureHeight * textureWidth; ++i)
+        texturetst[i] = (rand() % 1000) / 1000.0;
 
+}
+
+vec4 multVecOnMtr(vec4& a, Matrix4x4f& mt)
+{
+    vec4 retVal;
+    float* dt = mt.getDataPointer();
+
+    retVal.x = a.x * dt[0] + a.y * dt[4] + a.z * dt[8] + a.w * dt[12];
+    retVal.y = a.x * dt[1] + a.y * dt[5] + a.z * dt[9] + a.w * dt[13];
+    retVal.z = a.x * dt[2] + a.y * dt[6] + a.z * dt[10] + a.w * dt[14];
+    retVal.w = a.x * dt[3] + a.y * dt[7] + a.z * dt[11] + a.w * dt[15];
+
+    return retVal;
 }
 
 
 void mouseHandler(int x, int y)
 {
-    
+
     float dx = (oldX - x) / 60.0;
     float dy = (oldY - y) / 60.0;
-    
-    
+
     if (rightClick)
     {
-        vec3 vectToNode = deflector - mainCamera.getCameraPosition();
-        vec3 vecy(0, 0, 1);
-        vec3 vecx = vectToNode.getAbsVector() ^ vecy;
-        vec3 vel = vecx * (dx / 100) + vecy * (dy / 100);
-        deflector += vel;
-        flSolver.setPower(-2000, deflectorRadius, deflector, vel);
+        mainCamera.setRenderMatrix();
+        glGetFloatv(GL_MODELVIEW_MATRIX, cameraMtrMod.getDataPointer());
+        glGetFloatv(GL_PROJECTION_MATRIX, cameraMtrPrj.getDataPointer());
+        vec4 defl = vec4(deflector);
+        defl.w = 1;
+        Matrix4x4f tmp = cameraMtrMod * cameraMtrPrj;
+        vec4 viewSpacePos = multVecOnMtr(defl, tmp);
+        viewSpacePos = viewSpacePos * (1.0 / viewSpacePos.w);
+        viewSpacePos.x = (float)x / mainScreenWidth;
+        viewSpacePos.x = viewSpacePos.x * 2 - 1;
+        viewSpacePos.y = 1 - (float)y / mainScreenHeight;
+        viewSpacePos.y = viewSpacePos.y * 2 - 1;
+        viewSpacePos = multVecOnMtr(viewSpacePos, tmp.getInversed());
+        viewSpacePos = viewSpacePos * (1.0 / viewSpacePos.w);
+        vec3 vel = viewSpacePos.getVec3() - deflector;
+        deflector = viewSpacePos.getVec3();
+        flSolver.setPower(-2000, deflectorRadius, deflector, vel * 10.1);
+        oldX = x;
+        oldY = y;
         return;
     }
-    
-    
     mainCamera.rotateAroundAim(dx, dy);
     oldX = x;
-    oldY = y;
-
-    
-
+    oldY = y;   
     renderScene();
 }
-
-
 
 bool createWindow(int argc, char **argv)
 {
     glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
-	glutInitWindowPosition(100,100);
-	glutInitWindowSize(1024,1024);
+    glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
+    glutInitWindowPosition(100,100);
+    glutInitWindowSize(1024,1024);
     mainScreenHeight = 1024;
     mainScreenWidth = 1024;
     textureHeight = mainScreenHeight / REDUCTION;
     mainScreenWidth = mainScreenWidth / REDUCTION;
-        TEX_RENDERER_CAMERA.setOrthoBase(1);
-	glutCreateWindow("Fluid simulation");
+    TEX_RENDERER_CAMERA.setOrthoBase(1);
+
+    glutCreateWindow("Fluid simulation");
     glutDisplayFunc(renderScene);
     glutReshapeFunc(changeSize);
-    
+
     glColor3f(1,1,1);
     glClearColor(0, 0, 0, 0);
     glutMotionFunc(mouseHandler);
     glutMouseFunc(mouseClick);
-  
+    glutKeyboardFunc(keyboardPress);
     glewInit();
     generateCheckerTexture();
 
-     if (! glewIsSupported("GL_VERSION_2_0 "))
+    if (! glewIsSupported("GL_VERSION_2_0 "))
     {
         fprintf(stderr, "ERROR: Support for necessary OpenGL extensions missing.");
         fflush(stderr);
         return false;
     }
 
-     CHECK_ERRORS;
-     buildCube(0, 0, 0, 10, 10, 10);
-     renderInit();
-         
+    CHECK_ERRORS;
+    buildCube(0, 0, 0, 10, 10, 10);
+    renderInit();
+
 
 
     ///// CUDA accelerator initialization ////
@@ -488,11 +501,11 @@ bool createWindow(int argc, char **argv)
     printf("Maximum threads per block: %d \n", properties.maxThreadsPerBlock);
     glutIdleFunc(renderScene);
 
-    
+
 
     flSolver.createParticles(prtInf);
 
-	glutMainLoop();
+    glutMainLoop();
 }
 
 int main(int argc, char **argv)
@@ -500,179 +513,165 @@ int main(int argc, char **argv)
 
     LOG_FILE_POINTER = stdout;
     TEX_RENDERER_CAMERA.setProjectionType(ORTHO_PROJECTION);
-   // freopen("outlog.txt", "w", stdout);
-    
-    prtInf.particleCount = 25536;
+    prtInf.particleCount = 35536;
     prtInf.activeRadius = 0.024;
     prtInf.fluidDensity = 1000.0f;
-    prtInf.fluidViscosity = 3.5f;
-    prtInf.stiffness = 3.5f;      
-    
+    prtInf.fluidViscosity = 2.5f;
+    prtInf.stiffness = 2.5f;      
+
     createWindow(argc, argv);
-	return 1;
+    return 1;
 }   
 
 void renderInit()
 {
-         
-     glEnable(GL_PROGRAM_POINT_SIZE);
-     glEnable(GL_POINT_SPRITE);
-     glEnable(GL_DEPTH_TEST);
-     //glEnable(GL_BLEND);
-     glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
-     glBlendEquation(GL_FUNC_SUBTRACT);
-     
 
+    glEnable(GL_PROGRAM_POINT_SIZE);
+    glEnable(GL_POINT_SPRITE);
+    glEnable(GL_DEPTH_TEST);
+    glBlendFunc(GL_SRC_COLOR, GL_DST_COLOR);
+    glBlendEquation(GL_FUNC_SUBTRACT);
 
-     POINT_SHADER.createShader("shader/POINT_VX.vs", "shader/POINT_FS.fs", "");
-     SMOOTH_SHADER.createShader("shader/SMOOTH_VX.vs", "shader/SMOOTH_FS.fs", "");
-     FINAL_RENDER_SHADER.createShader("shader/FINAL_RENDER_SHADER_VS.vs", "shader/FINAL_RENDER_SHADER_FS.fs", "");
-     SKY_BOX_SHADER.createShader("shader/sky_box_shader.vs", "shader/sky_box_shader.fs", "");
+    POINT_SHADER.createShader("shader/POINT_VX.vs", "shader/POINT_FS.fs", "");
+    SMOOTH_SHADER.createShader("shader/SMOOTH_VX.vs", "shader/SMOOTH_FS.fs", "");
+    FINAL_RENDER_SHADER.createShader("shader/FINAL_RENDER_SHADER_VS.vs", "shader/FINAL_RENDER_SHADER_FS.fs", "");
+    SKY_BOX_SHADER.createShader("shader/sky_box_shader.vs", "shader/sky_box_shader.fs", "");
 
-     glEnableVertexAttribArray(1);
-     glGenBuffers(1, &scrVerBuffer);
-     glBindBuffer(GL_ARRAY_BUFFER, scrVerBuffer);
-     glVertexAttribPointer(1, 3, GL_FLOAT, 0, 0, 0);
-     glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(vec3), quadCoord, GL_STATIC_DRAW);
+    glEnableVertexAttribArray(1);
+    glGenBuffers(1, &scrVerBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, scrVerBuffer);
+    glVertexAttribPointer(1, 3, GL_FLOAT, 0, 0, 0);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(vec3), quadCoord, GL_STATIC_DRAW);
 
+    glEnableVertexAttribArray(2);
+    glGenBuffers(1, &scrTexBuffer);
+    glBindBuffer(GL_ARRAY_BUFFER, scrTexBuffer);
+    glVertexAttribPointer(2, 2, GL_FLOAT, 0, 0, 0);
+    glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(vec2), quadTexCoord, GL_STATIC_DRAW);
 
-     glEnableVertexAttribArray(2);
-     glGenBuffers(1, &scrTexBuffer);
-     glBindBuffer(GL_ARRAY_BUFFER, scrTexBuffer);
-     glVertexAttribPointer(2, 2, GL_FLOAT, 0, 0, 0);
-     glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(vec2), quadTexCoord, GL_STATIC_DRAW);
+    glBindBuffer(GL_ARRAY_BUFFER, 0);  
+    glPointSize(5);
 
-     glBindBuffer(GL_ARRAY_BUFFER, 0);  
-
-     CHECK_ERRORS;
+    CHECK_ERRORS;
 }
 
-Matrix4x4f cameraMtrPrj;
-Matrix4x4f cameraMtrMod;
-
-Matrix4x4f prjMtr;
-Matrix4x4f modMtr;
-Matrix4x4f temp;
-
-float matrForNormals[9];
-
 void renderScene(void) {
-    
+
     clock_t tm1 = clock();
+    flSolver.computeFluid(0.0015);  
+
+
+
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);   
-    
     mainCamera.setRenderMatrix(); 
- 
-
-
-
     glGetFloatv(GL_MODELVIEW_MATRIX, cameraMtrMod.getDataPointer());
-    glGetFloatv(GL_PROJECTION_MATRIX, cameraMtrPrj.getDataPointer());
-    glViewport(0, 0, textureWidth, textureHeight);
-    flSolver.computeFluid(0.002);  
-
-    
-    POINT_SHADER.assignShader();    
-    POINT_SHADER.sendViewMatrices(cameraMtrPrj.getDataPointer(), cameraMtrMod.getDataPointer());
-   
-
-    std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
-    std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
-    setFramebufferOutputs();
-
-    glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
-    POINT_SHADER.sendInt("drawingPass", 1);
-       flSolver.drawParticles(); 
-    glDisable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glFramebufferTextureEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RENDERER.fluidDepthTexture2, 0);
-    POINT_SHADER.sendInt("drawingPass", 2);
-        flSolver.drawParticles(); 
-        glDisable(GL_BLEND);
-        glEnable(GL_DEPTH_TEST);
-
-    CHECK_ERROR;    
-
-    SMOOTH_SHADER.assignShader();
-    std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
-    std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
-    setFramebufferOutputs();
-    glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    TEX_RENDERER_CAMERA.setRenderMatrix();
-
-    glGetFloatv(GL_MODELVIEW_MATRIX, modMtr.getDataPointer());
-    glGetFloatv(GL_PROJECTION_MATRIX, prjMtr.getDataPointer());
-    SMOOTH_SHADER.sendViewMatrices(prjMtr.getDataPointer(), modMtr.getDataPointer()); 
-        
-   
-    renderTextureOnScreen();
-
-    glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
-   
-    std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
-    std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
-    glViewport(0, 0, mainScreenWidth, mainScreenHeight); 
-
-    glEnable(GL_TEXTURE_CUBE_MAP);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
-
-    FINAL_RENDER_SHADER.assignShader(); 
-    FINAL_RENDER_SHADER.sendViewMatrices(prjMtr.getDataPointer(), modMtr.getDataPointer());
-    FINAL_RENDER_SHADER.sendMtr4x4Data("oldProjection_matrix", 1, cameraMtrPrj.getDataPointer());
-    FINAL_RENDER_SHADER.sendMtr4x4Data("oldModelview_matrix", 1, cameraMtrMod.getDataPointer());
-    temp = (cameraMtrPrj).getInversed();
-    FINAL_RENDER_SHADER.sendMtr4x4Data("inverted_matrix", 1, temp.getDataPointer()); 
-
-    temp = (cameraMtrMod * cameraMtrPrj).getInversed();
-    FINAL_RENDER_SHADER.sendMtr4x4Data("toWorldMatrix", 1, temp.getDataPointer()); 
-
-    temp = (cameraMtrMod).getInversed();
-    temp.getMainMinor(matrForNormals);
-    FINAL_RENDER_SHADER.sendMtr3x3Data("normalToWorld", 1, matrForNormals); 
+    glGetFloatv(GL_PROJECTION_MATRIX, cameraMtrPrj.getDataPointer());   
 
 
-    FINAL_RENDER_SHADER.sendCameraPosition(&mainCamera);
-    renderTextureOnScreen();
-    glUseProgram(0);   
-    glDisable(GL_TEXTURE_CUBE_MAP);
-    glDisable(GL_TEXTURE_2D);
-    
+    if (renderBeauty)
+    {
+        glViewport(0, 0, textureWidth, textureHeight);
+        POINT_SHADER.assignShader();    
+        POINT_SHADER.sendViewMatrices(cameraMtrPrj.getDataPointer(), cameraMtrMod.getDataPointer());
+        std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
+        std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
+        setFramebufferOutputs();
+        glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
+        POINT_SHADER.sendInt("drawingPass", 1);
+    }
+
+    flSolver.drawParticles(); 
+
+    // Depth rendering ///
+    //   glDisable(GL_DEPTH_TEST);
+    //   glEnable(GL_BLEND);
+    //   glFramebufferTextureEXT(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, RENDERER.fluidDepthTexture2, 0);
+    //   POINT_SHADER.sendInt("drawingPass", 2);
+    //       flSolver.drawParticles(); 
+    //       glDisable(GL_BLEND);
+    //       glEnable(GL_DEPTH_TEST);
+    //////////////////////
+
+    if (renderBeauty)
+    {
+        CHECK_ERROR;    
+        SMOOTH_SHADER.assignShader();
+        std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
+        std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
+        setFramebufferOutputs();
+        glBindFramebufferEXT(GL_FRAMEBUFFER, RENDERER.framebuffer);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        TEX_RENDERER_CAMERA.setRenderMatrix();
+        glGetFloatv(GL_MODELVIEW_MATRIX, modMtr.getDataPointer());
+        glGetFloatv(GL_PROJECTION_MATRIX, prjMtr.getDataPointer());
+        SMOOTH_SHADER.sendViewMatrices(prjMtr.getDataPointer(), modMtr.getDataPointer());         
+
+        renderTextureOnScreen();
+
+        glBindFramebufferEXT(GL_FRAMEBUFFER, 0);
+
+        std::swap(RENDERER.depthTexture1, RENDERER.depthTexture2);
+        std::swap(RENDERER.fluidDepthTexture1, RENDERER.fluidDepthTexture2);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);    
+        glViewport(0, 0, mainScreenWidth, mainScreenHeight); 
+
+        glEnable(GL_TEXTURE_CUBE_MAP);
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapEnv);
+
+        FINAL_RENDER_SHADER.assignShader(); 
+        FINAL_RENDER_SHADER.sendViewMatrices(prjMtr.getDataPointer(), modMtr.getDataPointer());
+        FINAL_RENDER_SHADER.sendMtr4x4Data("oldProjection_matrix", 1, cameraMtrPrj.getDataPointer());
+        FINAL_RENDER_SHADER.sendMtr4x4Data("oldModelview_matrix", 1, cameraMtrMod.getDataPointer());
+        temp = (cameraMtrPrj).getInversed();
+        FINAL_RENDER_SHADER.sendMtr4x4Data("inverted_matrix", 1, temp.getDataPointer()); 
+
+        temp = (cameraMtrMod * cameraMtrPrj).getInversed();
+        FINAL_RENDER_SHADER.sendMtr4x4Data("toWorldMatrix", 1, temp.getDataPointer()); 
+
+        temp = (cameraMtrMod).getInversed();
+        temp.getMainMinor(matrForNormals);
+        FINAL_RENDER_SHADER.sendMtr3x3Data("normalToWorld", 1, matrForNormals); 
+
+
+        FINAL_RENDER_SHADER.sendCameraPosition(&mainCamera);
+        renderTextureOnScreen();
+        glUseProgram(0);   
+        glDisable(GL_TEXTURE_CUBE_MAP);
+        glDisable(GL_TEXTURE_2D);
+    }
 
     mainCamera.setRenderMatrix();
     glColor3f(1, 1, 1); 
     SKY_BOX_SHADER.assignShader();
     SKY_BOX_SHADER.sendViewMatrices(cameraMtrPrj.getDataPointer(), cameraMtrMod.getDataPointer());
-    
+
     glActiveTexture(GL_TEXTURE0);
     drawCube();
     glUseProgram(0);
 
     flSolver.drawContainer();
-    
-    //glDisable(GL_DEPTH_TEST);
-   
+
+
     temp = getTranslateMatrix(deflector.x, deflector.y, deflector.z);
-    
+
     glLoadIdentity();
     glTranslatef(deflector.x, deflector.y, deflector.z);
-
     glGetFloatv(GL_MODELVIEW_MATRIX, temp.getDataPointer());
     temp = temp * cameraMtrMod;
     glLoadMatrixf(temp.getDataPointer());
-    
+    glColor3f(1, 0, 0);
     glutWireSphere(deflectorRadius, 20, 20);
-    //glEnable(GL_DEPTH_TEST);
-    
+    glColor3f(1, 1, 1);
+
     glFlush();
-	glutSwapBuffers();
-            clock_t tm2 = clock();
-
-        printf("Elapsed time per iteration: %f \n", 1.0 / (((double) tm2 - tm1) / CLOCKS_PER_SEC)); 
-
-            
-
+    glutSwapBuffers();
+    clock_t tm2 = clock();
+    printf("FPS: %f \n", 1.0 / (((double) tm2 - tm1) / CLOCKS_PER_SEC)); 
 }
+
+
+
+

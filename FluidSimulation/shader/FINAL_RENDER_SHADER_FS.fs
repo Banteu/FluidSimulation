@@ -76,7 +76,7 @@ void main()
 
     
 
-    float deepTexture = texture2D(deepSam, txr).x;
+    //float deepTexture = texture2D(deepSam, txr).x;
     vec3 nol;
     vec3 eyeSpacePs = getEyespacePos(txr, depth);
     vec4 worldSpacePs = toWorldMatrix * vec4(txr * 2 - 1, depth, 1);
@@ -91,7 +91,7 @@ void main()
 	vec3 lightVector = normalize(lightPosition - eyeSpacePs);
 	vec3 viewVector = normalize(worldSpacePs.xyz - camera_position);
     vec3 reflRay = reflect(viewVector, worldNormal);
-    vec3 refrRay = refract(viewVector, worldNormal, 1.4);
+    vec3 refrRay = refract(viewVector, worldNormal, 1.2);
     float reflBright = texture(envir, reflRay).x;
     float refrBright = texture(envir, refrRay).x;
 
@@ -102,5 +102,5 @@ void main()
     
 	
     color =  (vec4( difColor + refrBright + reflBright * pvl, 1.0) ) * 0.3;
-   // color = vec4(nol, 1.0);
+ //   color = vec4(nol, 1.0);
 }
