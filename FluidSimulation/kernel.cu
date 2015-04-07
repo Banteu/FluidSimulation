@@ -92,10 +92,10 @@ __global__ void computeDensities()
         float rd;
         float r2 = SIM_DATA->r2;
         block = getBlock(ps);
-        float densLoc = 0;
+        float densLoc = r2 * r2 * r2;
         float dtr;
         
-        int totCount = 0;
+        int totalCount = 0;
         
         for(int dir = 0; dir < DIRECTION_COUNT; ++dir)
         {
@@ -108,16 +108,18 @@ __global__ void computeDensities()
             int end = tex1Dfetch(texEndHsh, blhsh);            
             if (strt >= SIM_DATA->count)
                 continue;          
-            for (int j = strt; j <= end; ++j)
+            for (int j = strt; j <= end && totalCount < 32; ++j)
             {   
               //  printf("NORMAL_DENSITY: %d dir: %d count: %d \n", id, dir, end - strt + 1);
-                totCount++;
+                if (j == id)
+                    continue;
                 ps4 = tex1Dfetch(texPos, j);
                 ms.x = ps4.x; ms.y = ps4.y; ms.z = ps4.z;
                 vc = ps - ms;
                 dtr = vc.x * vc.x + vc.y * vc.y + vc.z * vc.z;
                 if (dtr > r2)
                     continue;
+                ++totalCount;
                 rd = r2 - dtr;
                 densLoc += rd * rd * rd;              
             }   
@@ -131,7 +133,7 @@ __global__ void computeDensities()
 
 __global__ void shared_computeDensities()
 {
-    extern __shared__ float3 shared_positions[];
+     __shared__ float3 shared_positions[1];
 
 
 
@@ -215,8 +217,7 @@ __global__ void shared_computeDensities()
         densLoc += rd * rd * rd;              
     }    
 
-    densLoc = SIM_DATA->diffKern * (densLoc * SIM_DATA->mass);  
-    
+    densLoc = SIM_DATA->diffKern * (densLoc * SIM_DATA->mass);      
     SIM_DATA->dens[cId] = densLoc;
     
 }
@@ -271,7 +272,7 @@ __global__ void solveFluid(float dt)
     float r = SIM_DATA->r;
     float r2 = SIM_DATA->r2;
     block = getBlock(ps);    
-    
+    int totalCount = 0;
     for(int dir = 0; dir < DIRECTION_COUNT; ++dir)
     {
         tempBlock.x = block.x + dx[dir];
@@ -283,7 +284,7 @@ __global__ void solveFluid(float dt)
         if (strt >= SIM_DATA->count)
             continue;
 
-        for (int j = strt; j <= end ; ++j)
+        for (int j = strt; j <= end && totalCount < 32; ++j)
         {              
             if (j == cId)
                 continue;
@@ -296,6 +297,7 @@ __global__ void solveFluid(float dt)
             dst = vc.x * vc.x + vc.y * vc.y + vc.z * vc.z;
             if (dst > r2)
                 continue;
+            ++totalCount;
             dst = sqrt(dst);
             mult = r - dst;
             pressureForce -=  vc * ((express + cpress) / (2 * dst) * mult * mult * mult);                  
@@ -317,7 +319,7 @@ __global__ void solveFluid(float dt)
     acceleration += SIM_DATA->gravity;
     
     hVel[cId] += acceleration * dt;  
-    SIM_DATA->force[cId] = acceleration;
+    SIM_DATA->accel[cId] = acceleration;
 
 }
 
@@ -337,9 +339,20 @@ __global__  void buildHashTable()
     int cId = blockDim.x * blockIdx.x + threadIdx.x;
     if (cId >= SIM_DATA->count)
         return;
-    uint pHash = SIM_DATA->zind[cId];
-    atomicMin(SIM_DATA->hashTableStart + pHash, cId);
-    atomicMax(SIM_DATA->hashTableEnd + pHash, cId);   
+    int pHash = SIM_DATA->zind[cId];
+    if (cId == 0)
+    {
+        SIM_DATA->hashTableStart[pHash] = cId;
+    }
+    if (cId == SIM_DATA->count - 1)
+    {
+        SIM_DATA->hashTableEnd[pHash]= cId;
+    }
+
+    if (cId > 0 && pHash != SIM_DATA->zind[cId - 1])
+        SIM_DATA->hashTableStart[pHash] = cId;
+    if (cId < SIM_DATA->count - 1 && pHash != SIM_DATA->zind[cId + 1])
+        SIM_DATA->hashTableEnd[pHash] = cId;
 }
 
 __global__ void updatePositions(float dt)
@@ -350,7 +363,7 @@ __global__ void updatePositions(float dt)
     float4 posOld = tex1Dfetch(texPos, cId);
     float3 pos3 = {posOld.x, posOld.y, posOld.z};
     float3 vl = SIM_DATA->hVel[cId];
-    float3 fr = SIM_DATA->force[cId];
+    float3 fr = SIM_DATA->accel[cId];
     double hdt = dt * 0.5;
     SIM_DATA->vel[cId].x  = vl.x + fr.x * hdt;
     SIM_DATA->vel[cId].y  = vl.y + fr.y * hdt;
@@ -408,15 +421,6 @@ __device__ void checkBoundary(int cId)
     }
 }
 
-__global__ void initArrays()
-{    
-    int cId = blockDim.x * blockIdx.x + threadIdx.x;
-    if (cId >= SIM_DATA->HASH_TABLE_SIZE)
-        return;
-    SIM_DATA->hashTableStart[cId] = 1000 * 1000 * 1000;
-    SIM_DATA->hashTableEnd[cId] = -1;   
-}
-
 __global__ void rearrangeParticle()
 {
     int cId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -472,28 +476,36 @@ __global__ void applyForce(forceData frc, float dt)
         float norm = sqrt(dtt);
         float d = frc.radius - norm;
         vc = vc * (1 / norm);
-        SIM_DATA->pos[cId] = vc * frc.radius;
         SIM_DATA->hVel[cId] = vc * frc.power;
         SIM_DATA->vel[cId] = vc * frc.power;
     }
 }
+__global__ void initArrays()
+{    
+    int cId = blockDim.x * blockIdx.x + threadIdx.x;
+    if (cId >= SIM_DATA->HASH_TABLE_SIZE)
+        return;
+    SIM_DATA->hashTableStart[cId] = 1000 * 1000 * 1000;
+}
 
 
+void mySwap(float3* &a, float3* &b)
+{
+    float3* c = b;
+    b = a;
+    a = c;
+}
 
-void prepareFluidGPU(particleData pData, float dt)
+void prepareFluidGPU(particleData& pData, float dt)
 {
      computeZindexes<<<(pData.count + 255) / 256, 256>>>();  
      thrust::sort_by_key(thrust::device_ptr<int>(pData.zind), thrust::device_ptr<int>(pData.zind) + pData.count, thrust::device_ptr<int>(pData.pind));
      initArrays<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>();
-     buildHashTable<<<(pData.count + 255) / 256, 256>>>();
      rearrangeParticle<<<(pData.count + 255) / 256, 256>>>();
-   //  blockCount = 0;
-   //  cudaMemcpy(blockGPUCount, &blockCount, sizeof(int), cudaMemcpyHostToDevice);
-   //  makeAlignedArray<<<(pData.HASH_TABLE_SIZE + 255) / 256, 256>>>(blockGPUCount, 32);
-  //   cudaMemcpy(&blockCount, blockGPUCount, sizeof(int), cudaMemcpyDeviceToHost);
+     buildHashTable<<<(pData.count + 255) / 256, 256>>>();
      
-     cudaMemcpy(pData.vel, pData.tempVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);
-     cudaMemcpy(pData.hVel, pData.temphVel, sizeof(float3) * pData.count, cudaMemcpyDeviceToDevice);
+     mySwap(pData.vel, pData.tempVel);
+     mySwap(pData.hVel, pData.temphVel);
 
 }
 
@@ -502,7 +514,6 @@ void solveFluid(particleData pData, float dt, forceData frc)
     int threads = 256;
     computeDensities<<<(pData.count + threads - 1) / threads, threads>>>();
     
-  //  shared_computeDensities<<<blockCount, 32, sizeof(float3) * 27 * 30>>>();
     solveFluid<<<(pData.count + threads - 1) / threads, threads>>>(dt);
     applyForce<<<(pData.count + threads - 1) / threads, threads>>>(frc, dt);
     updatePositions<<<(pData.count + threads - 1) / threads, threads>>>(dt);    
@@ -514,5 +525,3 @@ void updateSimData(particleData& data)
 {
     gpuErrchk( cudaMemcpyToSymbol(SIM_DATA, &data, sizeof(data)));
 }
-
-

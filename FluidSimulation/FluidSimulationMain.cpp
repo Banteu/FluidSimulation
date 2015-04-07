@@ -36,7 +36,7 @@ uint mainScreenWidth, mainScreenHeight;
 uint textureWidth, textureHeight;
 double REDUCTION = 1.0;
 
-Camera mainCamera(0, 0.5, 0.4, 0, 0, -0.3);
+Camera mainCamera(0, 0.8, 0.4, 0, 0, -0.1);
 Camera TEX_RENDERER_CAMERA(0, 0, 0, 0, 0, -1);
 
 void renderScene(void);
@@ -457,7 +457,7 @@ int main(int argc, char **argv)
 
     LOG_FILE_POINTER = stdout;
     TEX_RENDERER_CAMERA.setProjectionType(ORTHO_PROJECTION);
-    prtInf.particleCount = 35536;
+    prtInf.particleCount = 40006;
     prtInf.activeRadius = 0.024;
     prtInf.fluidDensity = 1000.0f;
     prtInf.fluidViscosity = 2.5f;
@@ -586,7 +586,7 @@ void renderScene(void) {
         glDisable(GL_TEXTURE_CUBE_MAP);
         glDisable(GL_TEXTURE_2D);
     }
-
+    
     mainCamera.setRenderMatrix();
     glColor3f(1, 1, 1); 
     SKY_BOX_SHADER.assignShader();

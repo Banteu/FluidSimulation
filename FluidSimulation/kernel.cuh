@@ -12,7 +12,7 @@ struct particleData
 {
     float3* pos;
     float4* posTextured;
-    float3* force;
+    float3* accel;
     float3* vel;
     float3* hVel;
     float3* color;
@@ -81,7 +81,7 @@ inline void gpuAssert(cudaError_t code, const char* file, int line, bool abort =
 
 void bindToTextures(particleData* pData);
 
-void prepareFluidGPU(particleData pdata, float dt);
+void prepareFluidGPU(particleData& pdata, float dt);
 void solveFluid(particleData pData, float dt, forceData frc);
 void updateSimData(particleData& data);
 
