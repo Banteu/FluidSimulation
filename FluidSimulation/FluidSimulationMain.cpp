@@ -457,7 +457,7 @@ int main(int argc, char **argv)
 
     LOG_FILE_POINTER = stdout;
     TEX_RENDERER_CAMERA.setProjectionType(ORTHO_PROJECTION);
-    prtInf.particleCount = 40006;
+    prtInf.particleCount = 25006;
     prtInf.activeRadius = 0.024;
     prtInf.fluidDensity = 1000.0f;
     prtInf.fluidViscosity = 2.5f;

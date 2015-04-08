@@ -55,7 +55,7 @@ Temporary Items
 # Compiled Dynamic libraries
 *.so
 *.dylib
-*.dll
+
 
 # Fortran module files
 *.mod
@@ -67,7 +67,6 @@ Temporary Items
 *.lib
 
 # Executables
-*.exe
 *.out
 *.app
 
