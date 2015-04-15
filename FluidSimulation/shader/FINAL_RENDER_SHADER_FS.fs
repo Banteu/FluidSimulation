@@ -43,18 +43,18 @@ vec3 getNormal(float depth, vec2 texCoord)
 	vec2 tNpos = txr;
 	vec3 cntrl = getEyespacePos(tNpos, depth);
 	tNpos = txr + vec2(texSizeX, 0); 
-	vec3 ddx = getEyespacePos(tNpos, texture2D(tSam, tNpos)) - cntrl;
+	vec3 ddx = getEyespacePos(tNpos, texture2D(tSam, tNpos).r) - cntrl;
 	tNpos = txr + vec2(-texSizeX, 0);
-	vec3 ddx2 = cntrl - getEyespacePos(tNpos, texture2D(tSam, tNpos));
+	vec3 ddx2 = cntrl - getEyespacePos(tNpos, texture2D(tSam, tNpos).r);
 	if (abs(ddx.z) > abs(ddx2.z))
 	{
 		ddx = ddx2;
 	}
 
 	tNpos = txr + vec2(0, texSizeY); 
-	vec3 ddy = getEyespacePos(tNpos, texture2D(tSam, tNpos)) - cntrl;
+	vec3 ddy = getEyespacePos(tNpos, texture2D(tSam, tNpos).r) - cntrl;
 	tNpos = txr + vec2(0, -texSizeY);
-	vec3 ddy2 = cntrl - getEyespacePos(tNpos, texture2D(tSam, tNpos));
+	vec3 ddy2 = cntrl - getEyespacePos(tNpos, texture2D(tSam, tNpos).r);
 	if (abs(ddy.z) > abs(ddy2.z))
 	{
 		ddy = ddy2;
